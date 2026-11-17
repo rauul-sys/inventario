@@ -19,7 +19,18 @@
     <div class="row"><label class="w">Correo<input id="a-email" type="email" autocomplete="username" required></label></div>
     <div class="row"><label class="w">Contraseña<input id="a-pass" type="password" autocomplete="current-password" minlength="6" required></label></div>
     <div class="row"><button class="p">Entrar</button><button type="button" onclick="entrar(true)">Crear cuenta</button></div>
+    <button type="button" class="s" onclick="olvide()">¿Olvidaste tu contraseña?</button>
     <p class="aviso" id="a-msg"></p>
+  </form>
+</div>
+
+<div class="pant centro" id="p-clave">
+  <h1 style="margin-bottom:12px">Nueva contraseña</h1>
+  <form class="box" onsubmit="guardarClave();return false">
+    <div class="row"><label class="w">Contraseña nueva<input id="r-pass" type="password" autocomplete="new-password" minlength="6" required></label></div>
+    <div class="row"><label class="w">Repítela<input id="r-pass2" type="password" autocomplete="new-password" minlength="6" required></label></div>
+    <div class="row"><button class="p">Guardar contraseña</button></div>
+    <p class="aviso" id="r-msg"></p>
   </form>
 </div>
 
@@ -107,6 +118,8 @@
   <div class="row">
     <label class="w">Buscar<input id="p-q" oninput="render()" placeholder="Nombre, código o categoría"></label>
     <button class="p solo-dueno" onclick="nuevoProd()">+ Nuevo producto</button>
+    <button class="solo-dueno" onclick="$('imp-x').click()">Importar desde Excel</button>
+    <input type="file" id="imp-x" accept=".xlsx,.xls,.csv" hidden onchange="leerExcel(this)">
   </div>
   <div class="box" id="prods"></div>
 </section>
@@ -222,6 +235,16 @@
   </form>
 </dialog>
 
+<dialog id="dlgImp">
+  <h2 style="margin-top:0">Importar productos</h2>
+  <div id="imp-res"></div>
+  <div class="row" style="margin-top:12px">
+    <button class="p" id="imp-ok" onclick="importar()">Importar</button>
+    <button onclick="dlgImp.close()">Cancelar</button>
+    <button class="s" onclick="plantilla()">Descargar plantilla</button>
+  </div>
+</dialog>
+
 <dialog id="dlgMov">
   <form onsubmit="guardarMov();return false">
     <h2 id="dm-t" style="margin-top:0"></h2>
@@ -269,6 +292,7 @@ const PAGOS={efectivo:'Efectivo',yape:'Yape',plin:'Plin',fiado:'Fiado'};
 const ERR={'Invalid login credentials':'Correo o contraseña incorrectos.','Email not confirmed':'Aún no confirmas tu correo: abre el mensaje que te enviamos.','User already registered':'Ese correo ya tiene una cuenta. Usa "Entrar".'};
 
 if(!window.supabase){$('p-carga').innerHTML='<p>No hay conexión y la app aún no se ha guardado en este dispositivo. Conéctate a internet y vuelve a abrirla.</p>';$('p-carga').classList.add('on');throw new Error('sin supabase')}
+let recuperando=/type=recovery/.test(location.hash);              // se llegó desde el enlace de "olvidé mi contraseña"
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
 let user=null, neg=null, dueno=false, prods=[], vend={}, diario={}, ventasHoy=[], movs=[], movTot=null, miembros=[], cart=[], vista='inicio';
@@ -290,6 +314,22 @@ async function entrar(crear){
     :await sb.auth.signInWithPassword({email,password});
   $('a-msg').textContent=error?(ERR[error.message]||error.message):(crear&&!data.session?'Te enviamos un correo para confirmar tu cuenta. Ábrelo y luego entra aquí.':'');
 }
+async function olvide(){
+  const email=$('a-email').value.trim();
+  if(!email){$('a-msg').textContent='Escribe tu correo arriba y vuelve a pulsar.';return}
+  $('a-msg').textContent='Un momento…';
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  $('a-msg').textContent=error?(/rate|security/i.test(error.message)?'Demasiados intentos. Espera unos minutos y vuelve a probar.':error.message)
+    :'Si ese correo tiene cuenta, te enviamos un enlace para cambiar la contraseña. Revisa también el correo no deseado.';
+}
+async function guardarClave(){
+  const a=$('r-pass').value;
+  if(a.length<6||a!==$('r-pass2').value){$('r-msg').textContent='Las dos contraseñas deben ser iguales y tener al menos 6 caracteres.';return}
+  const {error}=await sb.auth.updateUser({password:a});
+  if(error){$('r-msg').textContent=error.message;return}
+  recuperando=false;$('r-pass').value=$('r-pass2').value='';$('r-msg').textContent='';
+  await cargarNegocio();
+}
 async function salir(){
   if(cola.length&&!confirm(`Hay ${cola.length} operaciones sin enviar que se perderán. ¿Cerrar sesión de todos modos?`))return;
   cola=[];localStorage.removeItem('inv_cola');localStorage.removeItem('inv_cache');
@@ -297,6 +337,7 @@ async function salir(){
 }
 function usarCache(c){user=c.user;neg=c.neg;dueno=c.dueno;prods=c.prods;clientes=c.clientes||[];sinRed=true;fillCfg();pantalla('app');render()}
 async function sesion(s){
+  if(recuperando&&s?.user){user=s.user;return pantalla('clave')}   // primero debe elegir contraseña nueva
   if(s?.user&&user&&s.user.id===user.id&&neg)return;              // solo se renovó el token
   const c=leer('inv_cache');
   if(!s?.user){
@@ -851,6 +892,68 @@ async function quitarMiembro(uid){
   cargarEquipo();
 }
 
+/* ---------- Importar productos desde Excel ---------- */
+let impFilas=[];
+const sinTilde=t=>String(t??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+// títulos de columna que se reconocen (sin tildes ni mayúsculas)
+const COLS={nombre:['nombre','producto','descripcion','articulo','item'],precio:['precio','precio venta','precio de venta','pvp','venta'],
+  costo:['costo','precio compra','precio de compra','compra'],stock:['stock','cantidad','existencia','existencias','inventario'],
+  codigo:['codigo','codigo de barras','barras','sku','ean'],cat:['categoria','rubro','familia','grupo'],min:['minimo','stock minimo']};
+const COL_TXT={nombre:'nombre',precio:'precio',costo:'costo',stock:'stock',codigo:'código',cat:'categoría',min:'stock mínimo'};
+function numCelda(v){                                              // acepta 4.5, "4,50", "S/ 1.234,50"
+  if(typeof v==='number')return Math.max(0,v);
+  let t=String(v??'').replace(/[^\d.,]/g,'');
+  if(t.includes(',')&&t.includes('.'))t=t.lastIndexOf(',')>t.lastIndexOf('.')?t.replace(/\./g,'').replace(',','.'):t.replace(/,/g,'');
+  else t=t.replace(',','.');
+  return r3(num(t));
+}
+async function leerExcel(inp){
+  const f=inp.files[0];inp.value='';
+  if(!f)return;
+  try{
+    if(!window.XLSX)await cargarScript('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
+    const wb=XLSX.read(await f.arrayBuffer(),{raw:true}), M=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    const iT=M.findIndex(r=>r.some(c=>COLS.nombre.includes(sinTilde(c))));   // fila de títulos
+    if(iT<0)return alert('No encontré una columna llamada "Nombre" o "Producto". Descarga la plantilla y úsala como guía.');
+    const col={};
+    M[iT].forEach((c,i)=>{const t=sinTilde(c);for(const k in COLS)if(col[k]===undefined&&COLS[k].includes(t))col[k]=i});
+    const cel=(r,k)=>col[k]===undefined?'':r[col[k]], txt=(r,k)=>String(cel(r,k)??'').trim()||null;
+    const nombres=new Set(prods.map(p=>p.nombre.toLowerCase())), codigos=new Set(prods.map(p=>p.codigo).filter(Boolean));
+    let omitidos=0;impFilas=[];
+    for(const r of M.slice(iT+1)){
+      const nombre=txt(r,'nombre'), codigo=txt(r,'codigo');
+      if(!nombre)continue;
+      if(nombres.has(nombre.toLowerCase())||(codigo&&codigos.has(codigo))){omitidos++;continue}
+      nombres.add(nombre.toLowerCase());if(codigo)codigos.add(codigo);
+      impFilas.push({nombre,codigo,cat:txt(r,'cat'),precio:numCelda(cel(r,'precio')),costo:numCelda(cel(r,'costo')),stock:numCelda(cel(r,'stock')),min:numCelda(cel(r,'min'))});
+    }
+    $('imp-res').innerHTML=`<p><b>${impFilas.length}</b> productos nuevos para importar${omitidos?` · ${omitidos} ya existen o están repetidos y se omiten`:''}.</p>
+      <p class="mut">Columnas reconocidas: ${Object.keys(col).map(k=>COL_TXT[k]).join(', ')}.${col.precio===undefined?' No hay columna de precio: entrarán con precio 0.':''}</p>
+      ${impFilas.length?`<table><tr><th>Producto</th><th class="n">Precio</th><th class="n">Costo</th><th class="n">Stock</th></tr>
+      ${impFilas.slice(0,5).map(x=>`<tr><td>${esc(x.nombre)}</td><td class="n">${money(x.precio)}</td><td class="n">${money(x.costo)}</td><td class="n">${r3(x.stock)}</td></tr>`).join('')}</table>
+      ${impFilas.length>5?`<p class="mut">…y ${impFilas.length-5} más.</p>`:''}`:''}`;
+    $('imp-ok').hidden=!impFilas.length;
+    $('dlgImp').showModal();
+  }catch(e){alert('No se pudo leer el archivo: '+(e.message||e))}
+}
+async function importar(){
+  if(!impFilas.length)return;
+  $('imp-ok').disabled=true;
+  const P=impFilas.map(f=>({id:uuid(),negocio_id:neg.id,nombre:f.nombre,codigo:f.codigo,cat:f.cat,costo:f.costo,precio:f.precio,min:f.min}));
+  const E=P.map((p,i)=>({id:uuid(),negocio_id:neg.id,tipo:'entrada',producto_id:p.id,cant:impFilas[i].stock,costo:p.costo,nota:'Stock inicial (importado)'})).filter(e=>e.cant>0);
+  let error;                                                       // de 200 en 200 para no enviar un pedido enorme
+  for(let i=0;i<P.length&&!error;i+=200)({error}=await sb.from('productos').insert(P.slice(i,i+200)));
+  for(let i=0;i<E.length&&!error;i+=200)({error}=await sb.from('movimientos').insert(E.slice(i,i+200)));
+  $('imp-ok').disabled=false;$('dlgImp').close();
+  alert(error?'La importación se detuvo: '+(error.code==='23505'?'hay un nombre o código repetido':esRed(error)?'se perdió la conexión':error.message)+'. Revisa la lista de productos antes de volver a intentar.'
+    :`Se importaron ${P.length} productos.`);
+  impFilas=[];cargar();
+}
+function plantilla(){
+  bajar('plantilla_productos.csv',csv([['Nombre','Precio','Costo','Stock','Codigo','Categoria','Minimo'],
+    ['Arroz 1 kg',4.5,3.2,20,'7750000000011','Abarrotes',5],['Pan (unidad)',0.3,0.2,0,'','Panadería',0]]));
+}
+
 /* ---------- Exportación ---------- */
 function bajar(nombre,texto){
   const a=document.createElement('a');
@@ -876,7 +979,7 @@ addEventListener('online',()=>cargar());
 addEventListener('offline',render);
 pantalla('carga');
 // setTimeout: no se debe llamar a la base de datos dentro del propio aviso de cambio de sesión
-sb.auth.onAuthStateChange((ev,s)=>setTimeout(()=>sesion(s),0));
+sb.auth.onAuthStateChange((ev,s)=>{if(ev==='PASSWORD_RECOVERY')recuperando=true;setTimeout(()=>sesion(s),0)});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
