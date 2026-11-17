@@ -464,7 +464,7 @@ function conStats(){
 }
 
 /* ---------- Render ---------- */
-function go(v){vista=v;render();if(v==='movs')cargarMovs();if(v==='caja')cargarCaja();if(v==='cfg'){fillCfg();cargarEquipo()}}
+function go(v){vista=v;render();if(v==='vender')enfocar();if(v==='movs')cargarMovs();if(v==='caja')cargarCaja();if(v==='cfg'){fillCfg();cargarEquipo()}}
 function render(){
   if(!neg)return;
   $('neg').textContent=neg.nombre;
@@ -625,8 +625,22 @@ function buscarProd(txt){
 $('c-prod').addEventListener('change',()=>{const p=buscarProd($('c-prod').value);if(p)$('c-precio').value=p.precio});
 $('c-prod').addEventListener('input',buscarLista);
 $('c-prod').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCart()}});
+// Lector de código de barras: escribe como un teclado y termina con Enter.
+// En Vender, lo que se teclee fuera de un campo va al buscador, así no hace falta tocarlo antes de escanear.
+addEventListener('keydown',e=>{
+  if(vista!=='vender'||e.ctrlKey||e.altKey||e.metaKey||e.key.length!==1||document.querySelector('dialog[open]'))return;
+  if(!/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName))$('c-prod').focus();
+});
+// En el alta de producto, el Enter del lector no debe guardar el formulario a medias
+$('f-codigo').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();if(!$('f-nombre').value)$('f-nombre').focus()}});
+const enfocar=()=>{if(matchMedia('(pointer:fine)').matches)$('c-prod').focus()};   // solo con ratón: en celular abriría el teclado
 function addCart(){
   const txt=$('c-prod').value.trim(), p=buscarProd(txt);
+  if(!p&&dueno&&/^\d{6,}$/.test(txt)&&confirm(`No hay ningún producto con el código ${txt}. ¿Registrarlo ahora?`)){
+    $('c-prod').value='';$('res').innerHTML='';
+    nuevoProd();$('f-codigo').value=txt;$('f-mas').open=true;$('f-nombre').focus();
+    return;
+  }
   if(!p)return alert(`Producto no encontrado${txt?': '+txt:''}. Escribe el nombre completo o el código.`);
   const cant=num($('c-cant').value)||1, precio=$('c-precio').value===''?p.precio:num($('c-precio').value);
   if(cant<=0)return alert('La cantidad debe ser mayor que cero.');
@@ -663,7 +677,7 @@ async function cobrar(){
   const filas=cart.map(l=>({id:uuid(),negocio_id:neg.id,venta_id,fecha,tipo:'venta',producto_id:l.pid,cant:l.cant,precio:l.precio,pago:pagoSel,cliente_id}));
   avisoVenta='Venta registrada.'+(conVuelto?` Vuelto: ${money(pagado-total)}`:'');
   cart=[];pagoSel='efectivo';cliNombre='';pagaCon='';
-  enviar(filas);
+  enviar(filas);enfocar();
 }
 async function anular(id){
   const m=movs.find(x=>x.id===id)||ventasHoy.find(x=>x.id===id);if(!m)return;
