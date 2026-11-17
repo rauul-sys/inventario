@@ -4,49 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Inventario</title>
-<style>
-:root{--bg:#f4f5f7;--card:#fff;--tx:#1c2430;--mut:#6b7686;--bd:#dfe3e8;--pri:#1f6feb;--ok:#1a7f37;--warn:#b7791f;--bad:#cf222e}
-@media(prefers-color-scheme:dark){:root{--bg:#12161c;--card:#1b2129;--tx:#e6eaf0;--mut:#93a0b0;--bd:#2c3440;--pri:#4c8dff;--ok:#3fb950;--warn:#d9a13b;--bad:#f0606a}}
-*{box-sizing:border-box}
-body{margin:0;font:15px/1.4 system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--tx)}
-header{background:var(--card);border-bottom:1px solid var(--bd);padding:10px 16px;position:sticky;top:0;z-index:5}
-h1{margin:0 0 8px;font-size:18px}
-h2{font-size:16px;margin:18px 0 8px}
-nav{display:flex;gap:6px;overflow-x:auto}
-button{font:inherit;padding:7px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);cursor:pointer;white-space:nowrap}
-button.p{background:var(--pri);border-color:var(--pri);color:#fff}
-button.d{color:var(--bad)}
-button.s{padding:3px 8px;font-size:13px}
-nav button.on{background:var(--pri);border-color:var(--pri);color:#fff}
-main{max-width:1100px;margin:0 auto;padding:16px}
-section{display:none}section.on{display:block}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px}
-.card small{color:var(--mut);display:block}
-.card b{font-size:22px}
-.box{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
-th{color:var(--mut);font-weight:600;font-size:13px}
-td.n,th.n{text-align:right}
-input,select{font:inherit;padding:7px 9px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);width:100%}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px}
-.row label{flex:1 1 140px;font-size:13px;color:var(--mut)}
-.row label.w{flex:3 1 240px}
-.tag{padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;color:#fff}
-.agotado{background:var(--bad)}.reponer{background:var(--warn)}.pronto{background:var(--pri)}.ok{background:var(--ok)}
-.chart{display:flex;align-items:flex-end;gap:4px;height:140px}
-.chart div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--mut)}
-.chart i{display:block;width:100%;background:var(--pri);border-radius:4px 4px 0 0;min-height:2px}
-.mut{color:var(--mut)}.tot{font-size:20px;font-weight:700}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-bottom:12px}
-.tile{padding:6px;display:flex;flex-direction:column;align-items:center;gap:4px;white-space:normal;font-size:12px;line-height:1.2;text-align:center}
-.tile img,.tile .ph{width:64px;height:64px;border-radius:8px;object-fit:cover}
-.tile .ph{display:grid;place-items:center;background:var(--bd);font-size:22px;font-weight:700}
-dialog{border:1px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);width:min(520px,94vw);padding:16px}
-dialog::backdrop{background:#0008}
-@media print{header,button,.noprint{display:none!important}}
-</style>
+<link rel="stylesheet" href="estilo.css">
 </head>
 <body>
 <header>

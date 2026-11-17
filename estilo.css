@@ -1,0 +1,131 @@
+/* Diseño compartido por index.html y prototipo-local.html.
+   Celular: barra de pestañas abajo. Computadora: menú lateral y venta en dos columnas. */
+:root{--bg:#f4f6f8;--card:#fff;--tx:#0f172a;--mut:#64748b;--bd:#e2e8f0;--pri:#0f766e;--pri-tx:#fff;
+  --ok:#15803d;--warn:#b45309;--bad:#b91c1c;--info:#1d4ed8;--r:14px;
+  --sombra:0 1px 2px rgba(15,23,42,.06),0 4px 12px rgba(15,23,42,.04)}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1216;--card:#131c22;--tx:#e6edf3;--mut:#8b9aa9;--bd:#24313a;--pri:#2dd4bf;--pri-tx:#04211d;
+  --ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--info:#60a5fa;--sombra:none}}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font:15px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);-webkit-font-smoothing:antialiased}
+h1{margin:0;font-size:18px;letter-spacing:-.01em}
+h2{margin:24px 0 10px;font-size:12.5px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.mut{color:var(--mut)}
+.aviso{color:var(--warn);font-size:13px}
+.tot{font-size:22px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+section,.pant{display:none}
+section.on,.pant.on{display:block}
+body.cajero .solo-dueno{display:none!important}
+
+/* Botones y campos */
+button{font:inherit;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:8px 14px;
+  border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,transform .05s}
+button:hover{border-color:var(--mut)}
+button:active{transform:scale(.98)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
+button.p{background:var(--pri);border-color:var(--pri);color:var(--pri-tx);font-weight:600}
+button.p:hover{filter:brightness(1.08)}
+button.d{color:var(--bad)}
+button.s{min-height:30px;padding:4px 10px;font-size:13px;border-radius:8px}
+input,select{font:inherit;min-height:40px;padding:8px 11px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);width:100%}
+input[type=checkbox]{min-height:0;width:18px;height:18px;accent-color:var(--pri);vertical-align:-3px}
+input[type=file]{padding:6px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}
+.row label{flex:1 1 140px;font-size:12.5px;font-weight:500;color:var(--mut)}
+.row label.w{flex:3 1 240px}
+label>input:not([type=checkbox]),label>select{display:block;margin-top:4px}
+
+/* Estructura: celular */
+header{background:var(--card);border-bottom:1px solid var(--bd);padding:12px 16px;position:sticky;top:0;z-index:5}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;background:var(--card);
+  border-top:1px solid var(--bd);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+nav::-webkit-scrollbar{display:none}
+nav button{flex:1 0 66px;flex-direction:column;gap:3px;min-height:52px;padding:6px 4px;border:0;background:none;color:var(--mut);font-size:11px}
+nav button::before{content:"";width:22px;height:22px;background:currentColor;-webkit-mask:var(--i) center/contain no-repeat;mask:var(--i) center/contain no-repeat}
+nav button.on{color:var(--pri);background:color-mix(in srgb,var(--pri) 12%,transparent);font-weight:600}
+main{max-width:1180px;margin:0 auto;padding:16px 16px 96px}
+
+/* Iconos del menú (trazos propios, en línea para que funcionen sin internet) */
+nav button[data-v=inicio]{--i:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'/></svg>")}
+nav button[data-v=vender]{--i:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='9' cy='20' r='1.5'/><circle cx='18' cy='20' r='1.5'/><path d='M2 3h3l2.6 12h11.2L21 7H6.2'/></svg>")}
+nav button[data-v=fiado]{--i:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='9' cy='8' r='3.5'/><path d='M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5'/></svg>")}
+nav button[data-v=caja]{--i:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='6' width='19' height='12' rx='2'/><circle cx='12' cy='12' r='2.5'/><path d='M6 9.5v5M18 9.5v5'/></svg>")}
+nav button[data-v=productos]{--i:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7.5 12 3l9 4.5v9L12 21l-9-4.5zM3 7.5l9 4.5 9-4.5M12 12v9'/></svg>")}
+nav button[data-v=repo]{--i:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M20 11a8 8 0 0 0-14.5-4M4 4v4h4M4 13a8 8 0 0 0 14.5 4M20 20v-4h-4'/></svg>")}
+nav button[data-v=movs]{--i:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01'/></svg>")}
+nav button[data-v=cfg]{--i:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 6h10M18 6h2M4 12h2M10 12h10M4 18h10M18 18h2'/><circle cx='16' cy='6' r='2'/><circle cx='8' cy='12' r='2'/><circle cx='16' cy='18' r='2'/></svg>")}
+
+/* Tarjetas, tablas y estados */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.card,.box{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sombra)}
+.card{padding:16px}
+.card small{display:block;color:var(--mut);font-size:12px}
+.card small:first-child{text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:6px}
+.card b{display:block;font-size:26px;line-height:1.15;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-bottom:4px}
+.card:first-child{background:var(--pri);border-color:var(--pri);color:var(--pri-tx)}
+.card:first-child small{color:inherit;opacity:.85}
+.box{padding:16px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+tr:not(:first-child)>th{font-size:14px;text-transform:none;letter-spacing:0;color:var(--tx)}
+tr:last-child>td,tr:last-child>th{border-bottom:0}
+tr:hover>td{background:color-mix(in srgb,var(--pri) 5%,transparent)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600}
+.agotado{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.reponer{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.pronto{background:color-mix(in srgb,var(--info) 14%,transparent);color:var(--info)}
+.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.chart{display:flex;align-items:flex-end;gap:6px;height:150px}
+.chart div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%;font-size:11px;color:var(--mut)}
+.chart i{display:block;width:100%;max-width:38px;min-height:3px;border-radius:6px 6px 2px 2px;background:color-mix(in srgb,var(--pri) 35%,transparent)}
+.chart div:last-child i{background:var(--pri)}
+
+/* Venta */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin-bottom:14px}
+.tile{flex-direction:column;gap:6px;min-height:0;padding:10px 8px;white-space:normal;font-size:12.5px;line-height:1.2;text-align:center;border-radius:var(--r);box-shadow:var(--sombra)}
+.tile img,.tile .ph{width:72px;height:72px;border-radius:12px;object-fit:cover}
+.tile .ph{display:grid;place-items:center;background:var(--bg);color:var(--mut);font-size:22px;font-weight:700}
+.tile b{color:var(--pri);font-size:13px}
+#cart{overflow-x:auto}
+#cart th,#cart td{padding:8px 6px}
+#cart td:first-child{white-space:normal}
+#cart button.p{min-height:48px;padding:10px 22px;font-size:16px}
+
+/* Ventanas y pantallas de entrada */
+dialog{border:0;border-radius:18px;background:var(--card);color:var(--tx);width:min(560px,94vw);padding:22px;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(2px)}
+dialog h2{font-size:18px;text-transform:none;letter-spacing:0;color:var(--tx)}
+.centro{max-width:420px;margin:0 auto;padding:10vh 16px 16px}
+.centro h1{display:flex;align-items:center;gap:12px;font-size:24px}
+.centro h1::before{content:"";flex:none;width:44px;height:44px;border-radius:12px;background:url(icon.svg) center/cover}
+
+@media(max-width:600px){
+  dialog{width:100%;max-width:100%;max-height:92vh;margin:auto 0 0;border-radius:18px 18px 0 0}
+  .card b{font-size:22px}
+  #cart tr>:nth-child(3){display:none}   /* en celular el carrito no muestra el precio unitario */
+  .box{padding:12px}
+}
+/* Estructura: computadora */
+@media(min-width:900px){
+  header{position:fixed;inset:0 auto 0 0;width:232px;padding:22px 14px;border:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;gap:20px}
+  header h1{padding:0 10px;font-size:19px}
+  .top{flex-direction:column;align-items:flex-start}
+  nav{position:static;flex-direction:column;gap:4px;overflow:visible;background:none;border:0;padding:0}
+  nav button{flex:none;flex-direction:row;justify-content:flex-start;gap:12px;width:100%;min-height:44px;padding:10px 12px;font-size:15px}
+  main{margin:0 0 0 232px;max-width:none;padding:28px 36px 48px}
+  main>section{max-width:1160px}
+}
+@media(min-width:1180px){
+  #v-vender>.box:first-child{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:0 24px;align-items:start}
+  #v-vender>.box:first-child>.row,#tiles{grid-column:1}
+  #cart{grid-column:2;grid-row:1/span 3;min-height:220px;padding-left:24px;border-left:1px solid var(--bd)}
+}
+@media print{
+  header,button,.noprint{display:none!important}
+  main{margin:0;padding:0}
+  .box,.card{box-shadow:none}
+}
