@@ -56,6 +56,7 @@
     <button data-v="productos">Productos</button>
     <button data-v="repo">Reposición</button>
     <button data-v="movs">Movimientos</button>
+    <button data-v="rep" class="solo-dueno">Reportes</button>
     <button data-v="cfg">Ajustes</button>
   </nav>
 </header>
@@ -110,6 +111,7 @@
     <button data-v="productos" onclick="go('productos')"><span>Productos<small>Precios, stock y fotos</small></span></button>
     <button data-v="repo" class="solo-dueno" onclick="go('repo')"><span>Qué comprar<small>Lo que se está acabando</small></span></button>
     <button data-v="movs" class="solo-dueno" onclick="go('movs')"><span>Historial<small>Todas las ventas y cambios de stock</small></span></button>
+    <button data-v="rep" class="solo-dueno" onclick="go('rep')"><span>Reportes<small>Cómo te fue en la semana o el mes</small></span></button>
     <button data-v="cfg" onclick="go('cfg')"><span>Ajustes<small>Tu negocio, usuarios y sesión</small></span></button>
   </div>
 </section>
@@ -147,6 +149,18 @@
   <div class="box" id="movs"></div>
 </section>
 
+<section id="v-rep">
+  <div class="row noprint">
+    <span><button class="s" onclick="repRango('hoy')">Hoy</button> <button class="s" onclick="repRango('7')">7 días</button>
+      <button class="s" onclick="repRango('mes')">Este mes</button> <button class="s" onclick="repRango('ant')">Mes pasado</button></span>
+    <label>Desde<input type="date" id="rp-de" onchange="cargarRep()"></label>
+    <label>Hasta<input type="date" id="rp-a" onchange="cargarRep()"></label>
+    <button onclick="print()">Imprimir</button>
+    <button onclick="repWA()">Enviar por WhatsApp</button>
+  </div>
+  <div id="rep"></div>
+</section>
+
 <section id="v-cfg">
   <div class="box solo-dueno">
     <div class="row">
@@ -169,6 +183,11 @@
       <label>Rol<select id="e-rol"><option value="cajero">Cajero</option><option value="dueno">Dueño</option></select></label>
       <button onclick="agregarMiembro()">Agregar</button>
     </div>
+  </div>
+  <h2 class="solo-dueno">Respaldo</h2>
+  <div class="box solo-dueno">
+    <p class="mut">Descarga un Excel con tus productos, ventas, clientes, abonos y cierres de caja. Guárdalo fuera de este dispositivo, por ejemplo en tu correo.</p>
+    <button onclick="respaldo()">Descargar respaldo</button>
   </div>
   <h2>Vista</h2>
   <div class="box">
@@ -464,7 +483,7 @@ function conStats(){
 }
 
 /* ---------- Render ---------- */
-function go(v){vista=v;render();if(v==='vender')enfocar();if(v==='movs')cargarMovs();if(v==='caja')cargarCaja();if(v==='cfg'){fillCfg();cargarEquipo()}}
+function go(v){vista=v;render();if(v==='vender')enfocar();if(v==='movs')cargarMovs();if(v==='caja')cargarCaja();if(v==='rep')$('rp-de').value?cargarRep():repRango('mes');if(v==='cfg'){fillCfg();cargarEquipo()}}
 function render(){
   if(!neg)return;
   $('neg').textContent=neg.nombre;
@@ -475,7 +494,7 @@ function render(){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===vista||(simple&&b.dataset.v==='mas'&&EN_MAS.includes(vista))));
   document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==='v-'+vista));
   const L=conStats();
-  ({inicio:rInicio,vender:rVender,fiado:rFiado,caja:rCaja,productos:rProds,repo:rRepo,movs:rMovs,cfg:rCfg,mas:()=>{}})[vista](L);
+  ({inicio:rInicio,vender:rVender,fiado:rFiado,caja:rCaja,productos:rProds,repo:rRepo,movs:rMovs,cfg:rCfg,rep:rRep,mas:()=>{}})[vista](L);
 }
 const vacio=t=>`<p class="mut">${t}</p>`;
 
@@ -556,7 +575,7 @@ function rRepo(L){
 }
 
 /* ---------- Vista simple ---------- */
-const EN_MAS=['productos','repo','movs','cfg'];                    // pantallas que en vista simple viven dentro de "Más"
+const EN_MAS=['productos','repo','movs','rep','cfg'];                    // pantallas que en vista simple viven dentro de "Más"
 function setSimple(v){simple=v;guardar('inv_simple',v);render()}
 function rRepoSimple(F){
   const cuando=s=>s.cobDias===Infinity?'está bajo el mínimo':s.cobDias<1?'ya casi no queda':`se acaba en ${Math.floor(s.cobDias)} día${Math.floor(s.cobDias)===1?'':'s'}`;
@@ -925,7 +944,7 @@ async function leerExcel(inp){
   const f=inp.files[0];inp.value='';
   if(!f)return;
   try{
-    if(!window.XLSX)await cargarScript('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
+    if(!window.XLSX)await cargarScript(XLSX_URL);
     const wb=XLSX.read(await f.arrayBuffer(),{raw:true}), M=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
     const iT=M.findIndex(r=>r.some(c=>COLS.nombre.includes(sinTilde(c))));   // fila de títulos
     if(iT<0)return alert('No encontré una columna llamada "Nombre" o "Producto". Descarga la plantilla y úsala como guía.');
@@ -966,6 +985,90 @@ async function importar(){
 function plantilla(){
   bajar('plantilla_productos.csv',csv([['Nombre','Precio','Costo','Stock','Codigo','Categoria','Minimo'],
     ['Arroz 1 kg',4.5,3.2,20,'7750000000011','Abarrotes',5],['Pan (unidad)',0.3,0.2,0,'','Panadería',0]]));
+}
+
+/* ---------- Reportes ---------- */
+let rep=null, repAnt=null, nRep=0;
+const medianoche=d=>new Date(d+'T00:00:00').getTime();
+function repRango(r){
+  const h=new Date();
+  let de=hoy(), a=hoy();
+  if(r==='7')de=diaDe(Date.now()-6*DIA);
+  if(r==='mes')de=diaDe(new Date(h.getFullYear(),h.getMonth(),1));
+  if(r==='ant'){de=diaDe(new Date(h.getFullYear(),h.getMonth()-1,1));a=diaDe(new Date(h.getFullYear(),h.getMonth(),0))}
+  $('rp-de').value=de;$('rp-a').value=a;
+  cargarRep();
+}
+async function cargarRep(){
+  const de=$('rp-de').value||hoy(), a=$('rp-a').value||hoy();
+  if(a<de){rep=null;$('rep').innerHTML=vacio('La fecha "Hasta" debe ser igual o posterior a "Desde".');return}
+  // el período anterior tiene la misma cantidad de días y termina el día antes de "Desde"
+  const dias=Math.round((medianoche(a)-medianoche(de))/DIA)+1;
+  const pedir=(d,h)=>sb.rpc('reporte',{p_negocio:neg.id,p_desde:d,p_hasta:h,p_tz:TZ});
+  const sec=++nRep;
+  const [R,A]=await Promise.all([pedir(de,a),pedir(diaDe(medianoche(de)-dias*DIA),diaDe(medianoche(de)-DIA))]);
+  if(sec!==nRep)return;
+  if(R.error||A.error){rep=null;$('rep').innerHTML=vacio(esRed(R.error||A.error)?'Sin conexión: el reporte necesita internet.':'No se pudo cargar el reporte.');return}
+  rep=R.data;repAnt=A.data;
+  if(vista==='rep')render();
+}
+function rRep(){
+  if(!rep){if(!$('rep').innerHTML)$('rep').innerHTML=vacio('Cargando el reporte…');return}
+  const r=rep, p=repAnt, prom=x=>x.ventas?x.total/x.ventas:0;
+  const cmp=(a,b)=>b>0?`<small style="color:var(--${a>=b?'ok':'bad'})">${a>=b?'▲':'▼'} ${Math.abs(Math.round((a-b)/b*100))}% frente al período anterior</small>`:'<small>sin ventas en el período anterior</small>';
+  const K=[['Ventas',money(r.total),cmp(r.total,p.total)],['Ganancia',money(r.ganancia),cmp(r.ganancia,p.ganancia)],
+    ['N.º de ventas',r.ventas,cmp(r.ventas,p.ventas)],['Venta promedio',money(prom(r)),cmp(prom(r),prom(p))]];
+  const de=$('rp-de').value, n=Math.round((medianoche($('rp-a').value)-medianoche(de))/DIA)+1;
+  const dias=n<=62?[...Array(n)].map((_,i)=>diaDe(medianoche(de)+i*DIA)):[], t={};
+  r.dias.forEach(d=>t[d.dia]=+d.total);
+  const mx=Math.max(1,...dias.map(d=>t[d]||0));
+  const tabla=(tit,cab,filas)=>`<div><h2>${tit}</h2><div class="box">${filas.length?`<table><tr>${cab.map((c,i)=>`<th${i?' class="n"':''}>${c}</th>`).join('')}</tr>
+    ${filas.map(f=>`<tr>${f.map((c,i)=>`<td${i?' class="n"':''}>${c}</td>`).join('')}</tr>`).join('')}</table>`:vacio('Sin ventas en este período.')}</div></div>`;
+  $('rep').innerHTML=`<div class="cards plano">${K.map(k=>`<div class="card"><small>${k[0]}</small><b>${k[1]}</b>${k[2]}</div>`).join('')}</div>
+    ${r.sin_costo?`<p class="aviso">La ganancia está inflada: ${r.sin_costo} ${r.sin_costo==1?'venta es de un producto':'ventas son de productos'} sin costo registrado.</p>`:''}
+    ${dias.length>1?`<h2>Ventas por día</h2><div class="box"><div class="chart">${dias.map(d=>`<div title="${d}: ${money(t[d]||0)}"><i style="height:${(t[d]||0)/mx*100}%"></i>${n<=31?d.slice(8):''}</div>`).join('')}</div></div>`:''}
+    <div class="rep2">
+    ${tabla('Cómo te pagaron',['Forma de pago','Importe','Parte'],r.pagos.map(x=>[PAGOS[x.pago]||x.pago,money(x.total),`<i class="barra" style="width:${r.total?x.total/r.total*100:0}%"></i> ${r.total?Math.round(x.total/r.total*100):0}%`]))}
+    ${tabla('Por categoría',['Categoría','Importe','Ganancia'],r.categorias.map(x=>[esc(x.cat),money(x.total),money(x.ganancia)]))}
+    ${tabla('Productos que más vendieron',['Producto','Cantidad','Importe','Ganancia'],r.productos.map(x=>[esc(x.nombre),r3(x.cant),money(x.total),money(x.ganancia)]))}
+    ${tabla('Por persona que vendió',['Usuario','Ventas','Importe'],r.cajeros.map(x=>[esc(x.cajero),x.ventas,money(x.total)]))}
+    </div>`;
+}
+function repWA(){
+  if(!rep)return;
+  const f=d=>new Date(d+'T00:00:00').toLocaleDateString('es');
+  open('https://wa.me/?text='+encodeURIComponent(`${neg.nombre} · del ${f($('rp-de').value)} al ${f($('rp-a').value)}\nVentas: ${money(rep.total)} (${rep.ventas} ventas)\nGanancia: ${money(rep.ganancia)}\n`
+    +rep.pagos.map(x=>`${PAGOS[x.pago]||x.pago}: ${money(x.total)}`).join('\n')+(rep.productos[0]?`\nLo más vendido: ${rep.productos[0].nombre}`:'')),'_blank');
+}
+
+/* ---------- Respaldo en Excel ---------- */
+const XLSX_URL='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+async function respaldo(){
+  try{
+    if(!window.XLSX)await cargarScript(XLSX_URL);
+    const leerTabla=(t,cols,orden)=>todos(()=>sb.from(t).select(cols).eq('negocio_id',neg.id).order(orden).order('id'));
+    const [P,M,C,A,J,S]=await Promise.all([
+      leerTabla('productos','id,nombre,codigo,cat,costo,precio,stock,min,lead,activo,creado','nombre'),
+      leerTabla('movimientos','*','fecha'),leerTabla('clientes','*','nombre'),leerTabla('abonos','*','fecha'),
+      leerTabla('cajas','*','abre'),leerTabla('caja_salidas','*','fecha')]);
+    const mal=[P,M,C,A,J,S].find(x=>x.error);
+    if(mal)throw new Error(esRed(mal.error)?'se perdió la conexión':mal.error.message);
+    const f=d=>d?new Date(d).toLocaleString('es'):'', cliente=id=>C.data.find(c=>c.id===id)?.nombre||'', debe=id=>+(cli(id)?.debe||0);
+    const hojas={
+      Productos:[['Nombre','Precio','Costo','Stock','Codigo','Categoria','Minimo','Dias proveedor','Activo','Creado'],
+        ...P.data.map(p=>[p.nombre,p.precio,p.costo,p.stock,p.codigo||'',p.cat||'',p.min,p.lead,p.activo?'sí':'no',f(p.creado)])],
+      Movimientos:[['Fecha','Tipo','Producto','Cantidad','Cambio de stock','Precio','Costo','Importe','Forma de pago','Cliente','Nota'],
+        ...M.data.map(m=>[f(m.fecha),TIPOS[m.tipo],m.nombre,m.cant,m.delta,m.precio,m.costo,m.tipo==='venta'?r3(m.cant*m.precio):'',PAGOS[m.pago]||'',cliente(m.cliente_id),m.nota||''])],
+      Clientes:[['Nombre','Celular','Debe'],...C.data.map(c=>[c.nombre,c.tel||'',debe(c.id)])],
+      Abonos:[['Fecha','Cliente','Monto','Forma de pago'],...A.data.map(a=>[f(a.fecha),cliente(a.cliente_id),a.monto,PAGOS[a.pago]||a.pago])],
+      Cajas:[['Apertura','Cierre','Efectivo inicial','Vendido','Debía haber','Contado','Diferencia'],
+        ...J.data.map(c=>[f(c.abre),f(c.cierra),c.fondo,c.vendido??'',c.esperado??'',c.contado??'',c.cierra?r3(c.contado-c.esperado):''])],
+      'Salidas de caja':[['Fecha','Monto','Motivo'],...S.data.map(s=>[f(s.fecha),s.monto,s.nota||''])]
+    };
+    const wb=XLSX.utils.book_new();
+    for(const n in hojas)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(hojas[n]),n);
+    XLSX.writeFile(wb,`respaldo_${neg.nombre.replace(/[^\p{L}\d]+/gu,'_')}_${hoy()}.xlsx`);
+  }catch(e){alert('No se pudo crear el respaldo: '+(e.message||e))}
 }
 
 /* ---------- Exportación ---------- */
