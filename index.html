@@ -272,7 +272,7 @@ if(!window.supabase){$('p-carga').innerHTML='<p>No hay conexión y la app aún n
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
 let user=null, neg=null, dueno=false, prods=[], vend={}, diario={}, ventasHoy=[], movs=[], movTot=null, miembros=[], cart=[], vista='inicio';
-let clientes=[], caja=null, cajaRes=null, cajaSal=[], cajaHist=[], pagoSel='efectivo', cliNombre='', fotoTmp='';
+let clientes=[], caja=null, cajaRes=null, cajaSal=[], cajaHist=[], pagoSel='efectivo', cliNombre='', fotoTmp='', pagaCon='', avisoVenta='';
 let simple=leer('inv_simple',true);                                // vista simple: se guarda por dispositivo
 let cola=leer('inv_cola',[]), enviando=false, sinRed=false, canal=null, tR=null, nCarga=0, nCaja=0;
 const prod=id=>prods.find(p=>p.id===id);
@@ -476,7 +476,12 @@ function rVender(){
     ${pagoSel==='fiado'?`<label style="flex:0 1 220px">Cliente<input list="dl-cli" value="${esc(cliNombre)}" oninput="cliNombre=this.value" placeholder="Nombre del cliente">
     <datalist id="dl-cli">${clientes.map(c=>`<option value="${esc(c.nombre)}">`).join('')}</datalist></label>`:''}
     <span class="tot">Total: ${money(tot)}</span>
-    <button class="p" onclick="cobrar()">Registrar venta</button><button onclick="cart=[];render()">Vaciar</button></div>`:vacio('Agrega productos para registrar una venta.');
+    ${pagoSel==='efectivo'?`<label style="flex:0 1 120px">Paga con<input id="c-paga" type="number" min="0" step="any" inputmode="decimal" value="${esc(pagaCon)}" oninput="pagaCon=this.value;verVuelto()"></label>
+    <span><button class="s" onclick="pagaCon='${r3(tot)}';render()">Exacto</button> ${[10,20,50,100,200].filter(b=>b>tot).slice(0,3).map(b=>`<button class="s" onclick="pagaCon='${b}';render()">${b}</button>`).join(' ')}</span>
+    <span class="tot" id="vuelto"></span>`:''}
+    <button class="p" onclick="cobrar()">Registrar venta</button><button onclick="cart=[];pagaCon='';render()">Vaciar</button></div>`
+    :(avisoVenta?`<p class="tot" style="color:var(--ok);margin:8px 0">${esc(avisoVenta)}</p>`:vacio('Agrega productos para registrar una venta.'));
+  verVuelto();
   $('ventasHoy').innerHTML=ventasHoy.length?`<table><tr><th>Hora</th><th>Producto</th><th class="n">Cant.</th><th class="n">Total</th><th></th></tr>
     ${ventasHoy.map(m=>`<tr><td>${new Date(m.fecha).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})} · ${esc(pagoTxt(m))}</td><td>${esc(m.nombre)}</td><td class="n">${r3(m.cant)}</td>
     <td class="n">${money(m.cant*m.precio)}</td><td>${dueno?`<button class="s d" onclick="anular('${m.id}')">Anular</button>`:''}</td></tr>`).join('')}
@@ -528,6 +533,12 @@ function buscarLista(){                                            // en vista s
 function tocar(id){
   agregar(prod(id),1);
   $('c-prod').value='';$('res').innerHTML='';$('c-prod').focus();
+}
+function verVuelto(){                                              // se actualiza sin redibujar, para no perder el foco al escribir
+  const el=$('vuelto');if(!el)return;
+  const tot=r3(cart.reduce((a,l)=>a+l.cant*l.precio,0)), p=num(pagaCon);
+  el.textContent=pagaCon===''?'':p>=tot?`Vuelto: ${money(p-tot)}`:`Faltan ${money(tot-p)}`;
+  el.style.color=p>=tot?'var(--ok)':'var(--bad)';
 }
 function masMenos(i,d){
   const l=cart[i];if(!l)return;
@@ -582,6 +593,7 @@ function addCart(){
   $('c-prod').value='';$('c-cant').value=1;$('c-precio').value='';$('res').innerHTML='';$('c-prod').focus();
 }
 function agregar(p,cant,precio=p.precio){
+  avisoVenta='';
   const ya=cart.filter(l=>l.pid===p.id).reduce((a,l)=>a+l.cant,0);
   if(ya+cant>p.stock&&!confirm(`Solo hay ${r3(p.stock)} en stock de "${p.nombre}". ¿Vender de todos modos?`))return false;
   const l=cart.find(l=>l.pid===p.id&&l.precio===precio);
@@ -590,6 +602,8 @@ function agregar(p,cant,precio=p.precio){
 }
 async function cobrar(){
   if(!cart.length)return;
+  const total=r3(cart.reduce((a,l)=>a+l.cant*l.precio,0)), pagado=num(pagaCon), conVuelto=pagoSel==='efectivo'&&pagaCon!=='';
+  if(conVuelto&&pagado<total)return alert(`Faltan ${money(total-pagado)} para completar el pago.`);
   let cliente_id=null;
   if(pagoSel==='fiado'){
     const n=cliNombre.trim();
@@ -606,7 +620,8 @@ async function cobrar(){
   if(!cart.length)return;
   const venta_id=uuid(), fecha=new Date().toISOString();
   const filas=cart.map(l=>({id:uuid(),negocio_id:neg.id,venta_id,fecha,tipo:'venta',producto_id:l.pid,cant:l.cant,precio:l.precio,pago:pagoSel,cliente_id}));
-  cart=[];pagoSel='efectivo';cliNombre='';
+  avisoVenta='Venta registrada.'+(conVuelto?` Vuelto: ${money(pagado-total)}`:'');
+  cart=[];pagoSel='efectivo';cliNombre='';pagaCon='';
   enviar(filas);
 }
 async function anular(id){
