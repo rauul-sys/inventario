@@ -41,6 +41,7 @@
     <button data-v="vender">Vender</button>
     <button data-v="fiado">Fiado</button>
     <button data-v="caja">Caja</button>
+    <button data-v="mas">Más</button>
     <button data-v="productos">Productos</button>
     <button data-v="repo">Reposición</button>
     <button data-v="movs">Movimientos</button>
@@ -50,6 +51,7 @@
 <main>
 
 <section id="v-inicio">
+  <div id="guia"></div>
   <div class="cards" id="kpis"></div>
   <h2>Ventas de los últimos 14 días</h2>
   <div class="box"><div class="chart" id="chart"></div></div>
@@ -69,6 +71,7 @@
       <button class="p" onclick="addCart()">Agregar</button>
       <button onclick="escanear('venta')">Escanear con cámara</button>
     </div>
+    <div class="res" id="res"></div>
     <datalist id="dl-prods"></datalist>
     <div class="tiles" id="tiles"></div>
     <div id="cart"></div>
@@ -89,6 +92,15 @@
   <div id="caja"></div>
   <h2>Cierres anteriores</h2>
   <div class="box" id="cajaHist"></div>
+</section>
+
+<section id="v-mas">
+  <div class="menu">
+    <button data-v="productos" onclick="go('productos')"><span>Productos<small>Precios, stock y fotos</small></span></button>
+    <button data-v="repo" class="solo-dueno" onclick="go('repo')"><span>Qué comprar<small>Lo que se está acabando</small></span></button>
+    <button data-v="movs" class="solo-dueno" onclick="go('movs')"><span>Historial<small>Todas las ventas y cambios de stock</small></span></button>
+    <button data-v="cfg" onclick="go('cfg')"><span>Ajustes<small>Tu negocio, usuarios y sesión</small></span></button>
+  </div>
 </section>
 
 <section id="v-productos">
@@ -145,6 +157,11 @@
       <button onclick="agregarMiembro()">Agregar</button>
     </div>
   </div>
+  <h2>Vista</h2>
+  <div class="box">
+    <label><input type="checkbox" id="g-simple" onchange="setSimple(this.checked)"> Vista simple</label>
+    <p class="mut">Menos pestañas, palabras sencillas y venta en un toque. Desactívala para ver todas las columnas y opciones. Se guarda en este dispositivo.</p>
+  </div>
   <h2>Sesión</h2>
   <div class="box"><p class="mut" id="quien"></p><button onclick="salir()">Cerrar sesión</button></div>
 </section>
@@ -157,25 +174,30 @@
     <input type="hidden" id="f-id">
     <div class="row">
       <label class="w">Nombre *<input id="f-nombre" required></label>
-      <label>Código de barras<input id="f-codigo"></label>
-      <button type="button" onclick="escanear('codigo')">Escanear</button>
+      <label>Precio de venta *<input id="f-precio" type="number" min="0" step="any" required></label>
+      <label>Cuántos tienes ahora<input id="f-stock" type="number" min="0" step="any"></label>
     </div>
-    <div class="row">
-      <label>Categoría<input id="f-cat"></label>
-      <label>Costo unit. *<input id="f-costo" type="number" min="0" step="any" required></label>
-      <label>Precio venta *<input id="f-precio" type="number" min="0" step="any" required></label>
-    </div>
-    <div class="row">
-      <label>Stock inicial<input id="f-stock" type="number" min="0" step="any"></label>
-      <label>Stock mínimo<input id="f-min" type="number" min="0" step="any"></label>
-      <label>Días que tarda el proveedor<input id="f-lead" type="number" min="0" step="1"></label>
-    </div>
-    <div class="row">
-      <label><input type="checkbox" id="f-rapido" style="width:auto"> Mostrar como botón en Vender</label>
-      <label>Foto (opcional)<input type="file" id="f-foto" accept="image/*" onchange="leerFoto(this)"></label>
-      <img id="f-prev" alt="" width="48" height="48" style="border-radius:8px" hidden>
-      <button type="button" class="s" onclick="fotoTmp='';verFoto()">Quitar foto</button>
-    </div>
+    <details id="f-mas">
+      <summary>Más opciones</summary>
+      <div class="row">
+        <label class="w">Código de barras<input id="f-codigo"></label>
+        <button type="button" onclick="escanear('codigo')">Escanear</button>
+      </div>
+      <div class="row">
+        <label>Costo (lo que te cuesta a ti)<input id="f-costo" type="number" min="0" step="any"></label>
+        <label>Categoría<input id="f-cat"></label>
+      </div>
+      <div class="row">
+        <label>Stock mínimo<input id="f-min" type="number" min="0" step="any"></label>
+        <label>Días que tarda el proveedor<input id="f-lead" type="number" min="0" step="1"></label>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="f-rapido" style="width:auto"> Mostrar como botón en Vender</label>
+        <label>Foto (opcional)<input type="file" id="f-foto" accept="image/*" onchange="leerFoto(this)"></label>
+        <img id="f-prev" alt="" width="48" height="48" style="border-radius:8px" hidden>
+        <button type="button" class="s" onclick="fotoTmp='';verFoto()">Quitar foto</button>
+      </div>
+    </details>
     <div class="row">
       <button class="p">Guardar</button>
       <button type="button" onclick="dlgProd.close()">Cancelar</button>
@@ -251,6 +273,7 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 
 let user=null, neg=null, dueno=false, prods=[], vend={}, diario={}, ventasHoy=[], movs=[], movTot=null, miembros=[], cart=[], vista='inicio';
 let clientes=[], caja=null, cajaRes=null, cajaSal=[], cajaHist=[], pagoSel='efectivo', cliNombre='', fotoTmp='';
+let simple=leer('inv_simple',true);                                // vista simple: se guarda por dispositivo
 let cola=leer('inv_cola',[]), enviando=false, sinRed=false, canal=null, tR=null, nCarga=0, nCaja=0;
 const prod=id=>prods.find(p=>p.id===id);
 const pantalla=x=>document.querySelectorAll('.pant').forEach(p=>p.classList.toggle('on',p.id==='p-'+x));
@@ -293,7 +316,7 @@ async function cargarNegocio(){
   }
   if(!data.length)return pantalla('crear');
   const m=data.find(d=>d.negocios.id===localStorage.getItem('inv_neg'))||data[0];
-  neg=m.negocios;dueno=m.rol==='dueno';localStorage.setItem('inv_neg',neg.id);
+  neg=m.negocios;dueno=m.rol==='dueno';if(!dueno&&vista==='inicio')vista='vender';localStorage.setItem('inv_neg',neg.id);
   fillCfg();pantalla('app');render();suscribir();
   await cargar();
 }
@@ -406,20 +429,26 @@ function render(){
   $('neg').textContent=neg.nombre;
   document.title=neg.nombre+' · Inventario';
   document.body.classList.toggle('cajero',!dueno);
+  document.body.classList.toggle('simple',simple);
   $('estado').textContent=(sinRed||!navigator.onLine?'Sin conexión':'')+(cola.length?` · ${cola.length} por enviar`:'');
-  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===vista));
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===vista||(simple&&b.dataset.v==='mas'&&EN_MAS.includes(vista))));
   document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==='v-'+vista));
   const L=conStats();
-  ({inicio:rInicio,vender:rVender,fiado:rFiado,caja:rCaja,productos:rProds,repo:rRepo,movs:rMovs,cfg:rCfg})[vista](L);
+  ({inicio:rInicio,vender:rVender,fiado:rFiado,caja:rCaja,productos:rProds,repo:rRepo,movs:rMovs,cfg:rCfg,mas:()=>{}})[vista](L);
 }
 const vacio=t=>`<p class="mut">${t}</p>`;
 
 function rInicio(L){
+  const p1=prods.length>0, p2=ventasHoy.length>0||Object.keys(vend).length>0;
+  $('guia').innerHTML=dueno&&!(p1&&p2)?`<div class="box guia"><b>Empieza en 3 pasos</b><ol>
+    <li class="${p1?'hecho':''}">Agrega tus productos <button class="s p" onclick="go('productos');nuevoProd()">Agregar producto</button></li>
+    <li class="${p2?'hecho':''}">Haz tu primera venta <button class="s" onclick="go('vender')">Ir a vender</button></li>
+    <li>Mira en "Qué comprar" lo que se te está acabando</li></ol></div>`:'';
   const h=diario[hoy()]||{total:0,ganancia:0,ventas:0};
   const valor=prods.reduce((a,p)=>a+Math.max(0,p.stock)*p.costo,0);
   const urg=L.filter(x=>x.s.estado==='agotado'||x.s.estado==='reponer').length;
   const K=[['Ventas de hoy',money(h.total),h.ventas+(h.ventas==1?' venta':' ventas')]];
-  if(dueno)K.push(['Ganancia de hoy',money(h.ganancia),'precio − costo'],['Valor del inventario',money(valor),prods.length+' productos, a costo']);
+  if(dueno)K.push(['Ganancia de hoy',money(h.ganancia),prods.some(p=>!p.costo)?(n=>`incompleta: ${n} producto${n===1?'':'s'} sin costo`)(prods.filter(p=>!p.costo).length):'precio − costo'],['Valor del inventario',money(valor),prods.length+' productos, a costo']);
   K.push(['Por cobrar (fiado)',money(clientes.reduce((a,c)=>a+ +c.debe,0)),'ventas al fiado sin pagar'],['Por reponer',urg,'agotados o bajo el punto de reorden']);
   $('kpis').innerHTML=K.map(k=>`<div class="card"><small>${k[0]}</small><b>${k[1]}</b><small>${k[2]}</small></div>`).join('');
   const dias=[...Array(14)].map((_,i)=>diaDe(Date.now()-(13-i)*DIA)), t=d=>+(diario[d]?.total||0);
@@ -435,11 +464,12 @@ function rInicio(L){
 
 function rVender(){
   $('dl-prods').innerHTML=prods.map(p=>`<option value="${esc(p.nombre)}">${esc(p.codigo||'')} · stock ${r3(p.stock)} · ${money(p.precio)}</option>`).join('');
+  simple?$('c-prod').removeAttribute('list'):$('c-prod').setAttribute('list','dl-prods');
   $('tiles').innerHTML=prods.filter(p=>p.rapido).map(p=>`<button class="tile" onclick="agregar(prod('${p.id}'),1)">
     ${p.foto?`<img src="${esc(p.foto)}" alt="">`:`<span class="ph">${esc(p.nombre.slice(0,2))}</span>`}${esc(p.nombre)}<b>${money(p.precio)}</b></button>`).join('');
   const tot=cart.reduce((a,l)=>a+l.cant*l.precio,0);
   $('cart').innerHTML=cart.length?`<table><tr><th>Producto</th><th class="n">Cant.</th><th class="n">Precio</th><th class="n">Subtotal</th><th></th></tr>
-    ${cart.map((l,i)=>`<tr><td>${esc(l.nombre)}</td><td class="n">${r3(l.cant)}</td><td class="n">${money(l.precio)}</td><td class="n">${money(l.cant*l.precio)}</td>
+    ${cart.map((l,i)=>`<tr><td>${esc(l.nombre)}</td><td class="n"><button class="s" onclick="masMenos(${i},-1)">−</button> <b>${r3(l.cant)}</b> <button class="s" onclick="masMenos(${i},1)">+</button></td><td class="n">${money(l.precio)}</td><td class="n">${money(l.cant*l.precio)}</td>
     <td><button class="s d" onclick="cart.splice(${i},1);render()">Quitar</button></td></tr>`).join('')}</table>
     <div class="row" style="margin-top:10px;justify-content:flex-end">
     <label style="flex:0 1 150px">Forma de pago<select onchange="pagoSel=this.value;render()">${Object.keys(PAGOS).map(k=>`<option value="${k}"${k===pagoSel?' selected':''}>${PAGOS[k]}</option>`).join('')}</select></label>
@@ -458,7 +488,7 @@ function rProds(L){
   const F=L.filter(({p})=>!q||[p.nombre,p.codigo,p.cat].some(x=>(x||'').toLowerCase().includes(q))).sort((a,b)=>a.p.nombre.localeCompare(b.p.nombre));
   $('prods').innerHTML=F.length?`<table><tr><th>Código</th><th>Producto</th><th>Categoría</th><th class="n">Stock</th>${dueno?'<th class="n">Costo</th>':''}<th class="n">Precio</th>${dueno?'<th class="n">Margen</th>':''}<th>Estado</th><th></th></tr>
     ${F.map(({p,s})=>`<tr><td>${esc(p.codigo||'')}</td><td>${esc(p.nombre)}</td><td>${esc(p.cat||'')}</td><td class="n"><b>${r3(p.stock)}</b></td>
-    ${dueno?`<td class="n">${money(p.costo)}</td>`:''}<td class="n">${money(p.precio)}</td>${dueno?`<td class="n">${p.precio>0?Math.round((p.precio-p.costo)/p.precio*100)+'%':'—'}</td>`:''}
+    ${dueno?`<td class="n">${money(p.costo)}</td>`:''}<td class="n">${money(p.precio)}</td>${dueno?`<td class="n">${p.precio>0&&p.costo>0?Math.round((p.precio-p.costo)/p.precio*100)+'%':'—'}</td>`:''}
     <td><span class="tag ${s.estado}">${EST[s.estado]}</span></td>
     <td>${dueno?`<button class="s" onclick="abrirMov('${p.id}')">Stock ±</button> <button class="s" onclick="editProd('${p.id}')">Editar</button>`:''}</td></tr>`).join('')}</table>`
     :vacio(prods.length?'Ningún producto coincide.':'Aún no hay productos.');
@@ -466,6 +496,7 @@ function rProds(L){
 
 function filasRepo(L){return $('r-solo').checked?L.filter(x=>x.s.sug>0):L}
 function rRepo(L){
+  if(simple)return rRepoSimple(L.filter(x=>x.s.sug>0));
   const c=neg, F=filasRepo(L);
   $('repoInfo').textContent=`Promedio de venta diaria de los últimos ${c.dias} días. Punto de reorden = venta diaria × (días del proveedor + ${c.seg} de seguridad), nunca menor al stock mínimo. La compra sugerida cubre ${c.cob} días más.`;
   const costo=F.reduce((a,{p,s})=>a+s.sug*p.costo,0);
@@ -476,6 +507,33 @@ function rRepo(L){
     <td class="n">${r3(Math.ceil(s.rop))}</td><td class="n"><b>${s.sug||'—'}</b></td><td class="n">${s.sug?money(s.sug*p.costo):'—'}</td>
     <td><span class="tag ${s.estado}">${EST[s.estado]}</span></td></tr>`).join('')}
     <tr><th colspan="7">Costo total estimado de la compra</th><th class="n">${money(costo)}</th><th></th></tr></table>`:vacio('No hay nada que reponer por ahora.');
+}
+
+/* ---------- Vista simple ---------- */
+const EN_MAS=['productos','repo','movs','cfg'];                    // pantallas que en vista simple viven dentro de "Más"
+function setSimple(v){simple=v;guardar('inv_simple',v);render()}
+function rRepoSimple(F){
+  const cuando=s=>s.cobDias===Infinity?'está bajo el mínimo':s.cobDias<1?'ya casi no queda':`se acaba en ${Math.floor(s.cobDias)} día${Math.floor(s.cobDias)===1?'':'s'}`;
+  $('repo').innerHTML=F.length?F.map(({p,s})=>`<div class="item"><div><b>${esc(p.nombre)}</b><br><span class="mut">Compra ${s.sug} · ${p.stock<=0?'ya no queda':cuando(s)}</span></div>
+    <span class="tag ${s.estado}">${EST[s.estado]}</span></div>`).join('')
+    +(dueno?`<p class="tot" style="margin:14px 0 0">Necesitas aprox. ${money(F.reduce((a,{p,s})=>a+s.sug*p.costo,0))}</p>`:'')
+    :vacio('No necesitas comprar nada por ahora.');
+}
+function buscarLista(){                                            // en vista simple: lista de productos para tocar
+  const t=$('c-prod').value.trim().toLowerCase();
+  $('res').innerHTML=simple&&t?(prods.filter(p=>p.nombre.toLowerCase().includes(t)||(p.codigo||'').startsWith(t)).slice(0,8)
+    .map(p=>`<button onclick="tocar('${p.id}')"><span>${esc(p.nombre)}</span><span><b>${money(p.precio)}</b> · quedan ${r3(p.stock)}</span></button>`).join('')
+    ||vacio('No hay productos con ese nombre.')):'';
+}
+function tocar(id){
+  agregar(prod(id),1);
+  $('c-prod').value='';$('res').innerHTML='';$('c-prod').focus();
+}
+function masMenos(i,d){
+  const l=cart[i];if(!l)return;
+  l.cant=r3(l.cant+d);
+  if(l.cant<=0)cart.splice(i,1);
+  render();
 }
 
 /* ---------- Movimientos ---------- */
@@ -513,6 +571,7 @@ function buscarProd(txt){
   return par.length===1?par[0]:null;
 }
 $('c-prod').addEventListener('change',()=>{const p=buscarProd($('c-prod').value);if(p)$('c-precio').value=p.precio});
+$('c-prod').addEventListener('input',buscarLista);
 $('c-prod').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCart()}});
 function addCart(){
   const txt=$('c-prod').value.trim(), p=buscarProd(txt);
@@ -520,7 +579,7 @@ function addCart(){
   const cant=num($('c-cant').value)||1, precio=$('c-precio').value===''?p.precio:num($('c-precio').value);
   if(cant<=0)return alert('La cantidad debe ser mayor que cero.');
   if(!agregar(p,cant,precio))return;
-  $('c-prod').value='';$('c-cant').value=1;$('c-precio').value='';$('c-prod').focus();
+  $('c-prod').value='';$('c-cant').value=1;$('c-precio').value='';$('res').innerHTML='';$('c-prod').focus();
 }
 function agregar(p,cant,precio=p.precio){
   const ya=cart.filter(l=>l.pid===p.id).reduce((a,l)=>a+l.cant,0);
@@ -664,14 +723,14 @@ const CAMPOS=['nombre','codigo','cat','costo','precio','min','lead'];
 function nuevoProd(){
   $('dp-t').textContent='Nuevo producto';$('f-id').value='';
   [...CAMPOS,'stock'].forEach(c=>$('f-'+c).value='');
-  fotoTmp='';$('f-rapido').checked=false;$('f-foto').value='';verFoto();
+  fotoTmp='';$('f-rapido').checked=false;$('f-foto').value='';verFoto();$('f-mas').open=!simple;
   $('f-stock').disabled=false;$('f-del').hidden=true;$('dlgProd').showModal();
 }
 function editProd(id){
   const p=prod(id);if(!p)return;
   $('dp-t').textContent='Editar producto';$('f-id').value=id;
   CAMPOS.forEach(c=>$('f-'+c).value=p[c]??'');
-  fotoTmp=p.foto||'';$('f-rapido').checked=!!p.rapido;$('f-foto').value='';verFoto();
+  fotoTmp=p.foto||'';$('f-rapido').checked=!!p.rapido;$('f-foto').value='';verFoto();$('f-mas').open=!simple;
   $('f-stock').value=p.stock;$('f-stock').disabled=true;$('f-del').hidden=false;$('dlgProd').showModal();
 }
 async function guardarProd(){
@@ -701,11 +760,15 @@ function abrirMov(id){
   const p=prod(id);if(!p)return;
   $('dm-t').textContent=`${p.nombre} · stock actual ${r3(p.stock)}`;
   $('k-id').value=id;$('k-tipo').value='entrada';$('k-cant').value='';$('k-costo').value=p.costo;$('k-nota').value='';
+  const o=$('k-tipo').options;
+  o[0].text=simple?'Llegó mercadería':'Entrada (compra / reposición)';
+  o[1].text=simple?'Se perdió o venció':'Merma (vencido, roto, perdido)';
+  o[2].text=simple?'Corregir stock (conté y hay otra cantidad)':'Ajuste por conteo físico';
   movUI();$('dlgMov').showModal();
 }
 function movUI(){
   const t=$('k-tipo').value;
-  $('k-lc').textContent=t==='ajuste'?'Stock real contado':'Cantidad';
+  $('k-lc').textContent=t==='ajuste'?(simple?'Cuántos hay de verdad':'Stock real contado'):'Cantidad';
   $('k-lcosto').style.display=t==='entrada'?'':'none';
 }
 function guardarMov(){
@@ -743,6 +806,7 @@ $('dlgScan').addEventListener('close',cerrarScan);
 /* ---------- Ajustes y usuarios ---------- */
 function fillCfg(){
   ['nombre','moneda','dias','seg','cob'].forEach(c=>$('g-'+c).value=neg[c]);
+  $('g-simple').checked=simple;
   $('quien').textContent=`${user.email} · ${dueno?'Dueño':'Cajero'}`;
 }
 async function guardarCfg(){
